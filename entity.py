@@ -159,7 +159,7 @@ class Bullet(Entity):
         super(Bullet, self).__init__(world, name, position, heading, speed, image, (1, 1), rc, angle)
         self.survival_time = 0
         self.damage = damage
-        self.world.add('bullets', self)
+        self.add(self.world.group('bullets'))
 
     def update(self, time_passed):
         super(Bullet, self).update(time_passed)
@@ -210,7 +210,7 @@ class Role(Entity):
         self.hp = hp
         self.max_hp = hp
         self.hp_color = hp_color
-        self.bullet = {'bounce': [BounceBullet, 0]}
+        self.bullet = {'bounce': [BounceBullet, 0], 'spirals': [SpiralsBullet, 0]}
         self.move_speed = speed
         # self.world.tanks.add(self)
 
@@ -260,6 +260,8 @@ class Role(Entity):
 
     def hit(self, damage):
         self.hp -= damage
+        if self.hp <= 0:
+            self.kill()
         return self.hp
 
     def update(self, time_passed):
@@ -300,7 +302,7 @@ class Player(Role):
 
     def control(self, pressed_keys):
         if pressed_keys[K_SPACE]:
-            self.fire('bounce')
+            self.fire('spirals')
 
         if pressed_keys[K_LEFT] or pressed_keys[K_RIGHT] or pressed_keys[K_UP] or pressed_keys[K_DOWN]:
             direction = ''
@@ -317,10 +319,6 @@ class Player(Role):
         else:
             self.stop()
 
-    def hit(self, de):
-        if super(Player, self).hit(de) <= 0:
-            self.world.remove('player', self)
-
 
 class Robot(Role):
     counter = 0
@@ -329,12 +327,12 @@ class Robot(Role):
         w = world.width
         h = int(world.height * 0.3)
         position = (random.randint(0, w), random.randint(0, h))
-        super(Robot, self).__init__(world, 'Robot', position, (0, -1), 50,'media/hero-0.png',
+        super(Robot, self).__init__(world, 'Robot', position, (0, -1), 50, 'media/hero-0.png',
                                     (4, 4), (25, 12.5), hp_color=(255, 0, 0))
         Robot.counter += 1
         self.move_counter = 0
         self.next_time = 0
-        self.world.add('robot', self)
+        self.add(self.world.group('robot'))
 
     def update(self, time_passed):
         self.move_counter += 1
@@ -348,18 +346,18 @@ class Robot(Role):
                 self.move(move)
         super(Robot, self).update(time_passed)
         if random.random() < 0.03:
-            self.fire('bounce')
+            bullet = random.choice(['bounce', 'spirals'])
+            self.fire(bullet)
 
     def hit(self, de):
         if super(Robot, self).hit(de) <= 0:
-            self.world.remove('robot', self)
             self.world.kill_counter += 1
 
     def fire(self, bullet):
         heading = self.heading
         self.heading = Vector2(random.random() * 2 - 1, random.random() * 2 - 1)
         super(Robot, self).fire(bullet)
-        self.heading += heading
+        self.heading = heading
 
 
 class World(object):
@@ -380,6 +378,9 @@ class World(object):
     def remove(self, group_name, *sprites):
         if group_name in self.groups:
             self.groups[group_name].remove(*sprites)
+
+    def group(self, group_name):
+        return self.groups.setdefault(group_name, sprite.Group())
 
     @staticmethod
     def collide(bullet, tank):
@@ -403,12 +404,12 @@ class World(object):
         if len(bs) < 5:
             if Robot.counter < 100:
                 Robot(self)
-            if len(bs) == 0:
-                return 'win'
+            # if len(bs) == 0:
+            #     return 'win'
 
-        bs = self.groups.setdefault('player', sprite.Group())
-        if len(bs) == 0:
-            return 'over'
+            # bs = self.groups.setdefault('player', sprite.Group())
+            # if len(bs) == 0:
+            #     return 'over'
 
         return None
 
@@ -416,3 +417,29 @@ class World(object):
         for group in self.groups.values():
             group.update(time_pass_second)
             group.draw(self.surface)
+
+
+class SpiralsBullet(Bullet):
+    cold_down = 500
+
+    def __init__(self, world, name, position, heading):
+        super(SpiralsBullet, self).__init__(world, name, position, heading, 52, 'media/bullet-png.png', 10)
+        self.action_angle = 0
+        self.origin_point = position
+
+    def movement(self, time_passed):
+        r = self.position.get_distance_to(self.origin_point)
+        if r > max(self.world.width, self.world.height):
+            self.kill()
+        coe = 1
+        if r > 50:
+            coe = self.speed / r
+        self.action_angle += math.pi * time_passed * coe
+        c = self.action_angle
+        a = 0
+        b = 10
+        x = (a + b * c) * math.cos(c)
+        y = (a + b * c) * math.sin(c)
+        position = Vector2(x, y) + self.origin_point
+        self.heading = position - self.position
+        self.position = position
