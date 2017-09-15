@@ -6,7 +6,7 @@ import math
 
 
 class Entity(sprite.Sprite):
-    def __init__(self, world, name, position, heading, speed, image, rc, nums=None, angle=0):
+    def __init__(self, world, name, position, heading, speed, image, rc, nums=None, angle=0, overlap=0):
         '''
         类的构造函数
         :param world: 所在的世界，都是世界的错，西园寺小姐真是很辛苦呢
@@ -19,6 +19,7 @@ class Entity(sprite.Sprite):
         :param nums: 一个元组(m, n)，用于缩放；表示实例图像大小相对于世界大小的数量，
         即摆满屏幕横着可以放m列，竖着可以放n行；可为 None，表示不进行缩放
         :param angle: 图像初始旋转的角度
+        :param overlap: 图像可覆盖高度，用于碰撞检测和绘画时排序
         '''
         # 调用父类的构造函数
         super(Entity, self).__init__()
@@ -39,6 +40,7 @@ class Entity(sprite.Sprite):
         self.action_counter = 0  # 用于控制移动时动画帧率的时间间隔统计
         self.heading = Vector2(heading).normalise()  # 朝向，归一化，即向量长度为 1
         self.init_angle = angle
+        self.overlap = overlap
         self.collide_entity = {}
 
     def load(self, image, rc, nums):
@@ -213,6 +215,8 @@ class Role(Entity):
         self.hp_color = hp_color
         self.bullet = {}
         self.move_speed = speed
+        if hp_color is not None:
+            self.overlap *= 1.1
         # self.world.tanks.add(self)
 
     def move(self, direction):
@@ -331,23 +335,43 @@ class Role(Entity):
             self.bullet.pop(name)
 
 
+class ListGroup(sprite.Group):
+    def __init__(self, *sprites):
+        super(ListGroup, self).__init__(*sprites)
+        self.sort = None
+
+    def sprites(self):
+        '''
+        重写此方法，会返回一个进行排序后的列表
+        :return: 精灵列表
+        '''
+        sprites = list(self.spritedict)
+        if callable(self.sort):
+            sprites.sort(key=self.sort)
+        return sprites
+
+
 class WorldBase(object):
     def __init__(self, surface):
         self.surface = surface
+        self.all_sprite = ListGroup()
+        self.all_sprite.sort = self.sort
         self.groups = {}
         self.width, self.height = self.surface.get_size()
         self.hit_counter = 0
         self.kill_counter = 0
 
     def add(self, group_name, *sprites):
+        self.all_sprite.add(*sprites)
         self.groups.setdefault(group_name, sprite.Group()).add(*sprites)
 
     def remove(self, group_name, *sprites):
+        self.all_sprite.remove(*sprites)
         if group_name in self.groups:
             self.groups[group_name].remove(*sprites)
 
     def group(self, group_name):
-        return self.groups.setdefault(group_name, sprite.Group())
+        return self.groups.setdefault(group_name, sprite.Group()), self.all_sprite
 
     def get_groups(self):
         return self.groups.items()
@@ -357,6 +381,13 @@ class WorldBase(object):
         if a == b:
             return False
         return sprite.collide_rect_ratio(0.5)(a, b)
+
+    @staticmethod
+    def sort(sp):
+        x, y = sp.rect.center
+        w, h = sp.rect.size
+        y -= w / 2 - sp.overlap
+        return y
 
     def process(self):
         groups = list(self.groups.items())
@@ -372,6 +403,5 @@ class WorldBase(object):
         return None
 
     def update(self, time_pass_second):
-        for group in list(self.groups.values()):
-            group.update(time_pass_second)
-            group.draw(self.surface)
+        self.all_sprite.update(time_pass_second)
+        self.all_sprite.draw(self.surface)
