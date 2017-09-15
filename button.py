@@ -19,20 +19,10 @@ class Button(Sprite):
         self.w, self.h = self.image.get_size()
 
     def render(self, surface):
-        x, y = self.position
-        x -= self.w / 2
-        y -= self.h / 2
-        surface.blit(self.image, (x, y))
+        surface.blit(self.image, self.rect)
 
     def is_over(self, pos):
-        px, py = pos
-        x, y = self.position
-        x -= self.w / 2
-        y -= self.h / 2
-
-        in_x = x <= px <= x + self.w
-        in_y = y <= py <= y + self.h
-        if in_x and in_y:
+        if self.rect.collidepoint(pos):
             if self.call_back is not None:
                 if self.args is None:
                     self.call_back(self)
