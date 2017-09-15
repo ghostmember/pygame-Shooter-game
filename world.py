@@ -1,5 +1,6 @@
 from pygame import sprite
 from entity import WorldBase
+from role import Robot
 
 
 class World(WorldBase):
@@ -17,8 +18,8 @@ class World(WorldBase):
 
         bs = self.groups.setdefault('robot', sprite.Group())
         if len(bs) < 5:
-            # if Robot.counter < 100:
-            #     Robot(self)
+            if Robot.counter < 100:
+                Robot(self)
             if len(bs) == 0:
                 return 'win'
 

@@ -1,9 +1,8 @@
 import pygame
 from pygame.locals import *
 from entity import Role
-from gameobjects.vector2 import Vector2
 import random
-import math
+from bullet import *
 
 
 class Robot(Role):
@@ -19,6 +18,8 @@ class Robot(Role):
         self.move_counter = 0
         self.next_time = 0
         self.add(self.world.group('robot'))
+        self.add_bullet('bounce', BounceBullet)
+        self.add_bullet('spirals', SpiralsBullet)
 
     def update(self, time_passed):
         self.move_counter += 1
@@ -32,20 +33,18 @@ class Robot(Role):
                 self.move(move)
         super(Robot, self).update(time_passed)
         if random.random() < 0.03:
-            bullet = random.choice(['bounce', 'spirals'])
+            bullet = random.choice(list(self.bullet.keys()))
             self.fire(bullet)
 
     def hit(self, de):
         if super(Robot, self).hit(de) <= 0:
             self.world.kill_counter += 1
 
-    def fire(self, bullet):
-        heading = self.heading
+    def fire(self, bullet, heading=None):
         current_time = pygame.time.get_ticks() / 1000
         angle = current_time * math.pi * 2
-        self.heading = Vector2(math.cos(angle), math.sin(angle))
-        super(Robot, self).fire(bullet)
-        self.heading = heading
+        heading = Vector2(math.cos(angle), math.sin(angle))
+        super(Robot, self).fire(bullet, heading)
 
 
 class Player(Role):
@@ -54,6 +53,7 @@ class Player(Role):
                                      hp_color=(0, 255, 0))
         self.world.add('player', self)
         self.frame_row = 3
+        self.add_bullet('bounce', BounceBullet)
 
     def control(self, pressed_keys):
         if pressed_keys[K_SPACE]:

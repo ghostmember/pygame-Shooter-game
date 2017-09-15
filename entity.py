@@ -186,6 +186,8 @@ class Bullet(Entity):
         self.rotate(angle)
 
     def collide_callback(self, group_name, entity):
+        if group_name == 'bullets':
+            return
         self.kill()
 
 
@@ -238,12 +240,17 @@ class Role(Entity):
         self.frame_col = 0
         self.speed = 0
 
-    def fire(self, bullet):
+    def fire(self, bullet, heading=None):
         if bullet not in self.bullet:
             return
         current_time = pygame.time.get_ticks()
-        if current_time > self.bullet[bullet][1] + self.bullet[bullet][0].cold_down:
-            angle = math.radians(self.get_heading())
+        if self.bullet[bullet]['num'] == 0:
+            return
+        if current_time > self.bullet[bullet]['last_time'] + self.bullet[bullet]['cd_time']:
+            if heading is None:
+                heading = self.heading
+            x, y = heading
+            angle = math.atan2(-y, x)
             w, h = self.rect.size
             angle2 = math.atan2(h, w)
             angle3 = math.pi - angle2
@@ -253,9 +260,10 @@ class Role(Entity):
             else:
                 x = h / math.sin(angle) * math.cos(angle)
                 y = h
-            position = self.position + Vector2(x, y).length * self.heading.get_normalised()
-            self.bullet[bullet][0](self.world, self, position, self.heading)
-            self.bullet[bullet][1] = current_time
+            position = self.position + Vector2(x, y).length * heading.get_normalised()
+            self.bullet[bullet]['bullet'](self.world, self, position, heading)
+            self.bullet[bullet]['last_time'] = current_time
+            self.bullet[bullet]['num'] -= 1
 
     def hit(self, damage):
         self.hp -= damage
@@ -300,6 +308,28 @@ class Role(Entity):
         else:
             super(Role, self).collide_callback(group_name, entity)
 
+    def add_bullet(self, name, bullet, num=-1):
+        '''
+        添加子弹
+        :param name: 子弹的名字
+        :param bullet: 子弹的类
+        :param num: 子弹的数量，如果小于 0 表示无限，为 0 时，表示清除无限状态，将数量设为 0
+        :return: None
+        '''
+        self.bullet.setdefault(name, dict())['bullet'] = bullet
+        n = self.bullet.setdefault(name, dict()).setdefault('num', 0)
+        if num < 1:
+            self.bullet[name]['num'] = num
+        else:
+            n += num
+            self.bullet[name]['num'] = n
+        self.bullet[name]['last_time'] = 0
+        self.bullet[name]['cd_time'] = bullet.cold_down
+
+    def remove_bullet(self, name):
+        if name in self.bullet:
+            self.bullet.pop(name)
+
 
 class WorldBase(object):
     def __init__(self, surface):
@@ -310,10 +340,7 @@ class WorldBase(object):
         self.kill_counter = 0
 
     def add(self, group_name, *sprites):
-        if group_name not in self.groups:
-            self.groups[group_name] = sprite.Group(*sprites)
-        else:
-            self.groups[group_name].add(*sprites)
+        self.groups.setdefault(group_name, sprite.Group()).add(*sprites)
 
     def remove(self, group_name, *sprites):
         if group_name in self.groups:
@@ -326,15 +353,14 @@ class WorldBase(object):
         return self.groups.items()
 
     @staticmethod
-    def collide(bullet, tank):
-        # if bullet.name == tank.name:
-        #     return False
-        return sprite.collide_rect_ratio(0.5)(bullet, tank)
+    def collide(a, b):
+        if a == b:
+            return False
+        return sprite.collide_rect_ratio(0.5)(a, b)
 
     def process(self):
         groups = list(self.groups.items())
         for group in groups:
-            groups.remove(group)
             name1, group1 = group
             for name2, group2 in groups:
                 g = sprite.groupcollide(group1, group2, False, False, self.collide)
@@ -342,9 +368,10 @@ class WorldBase(object):
                     for b in bs:
                         a.collide_callback(name2, b)
                         b.collide_callback(name1, a)
+            groups.remove(group)
         return None
 
     def update(self, time_pass_second):
-        for group in self.groups.values():
+        for group in list(self.groups.values()):
             group.update(time_pass_second)
             group.draw(self.surface)
