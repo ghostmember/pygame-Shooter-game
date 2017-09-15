@@ -30,7 +30,7 @@ class SpiralsBullet(Bullet):
     cold_down = 500
 
     def __init__(self, world, parent, position, heading):
-        super(SpiralsBullet, self).__init__(world, 'spirals', parent, position, heading, 52, 'media/bullet-png.png', 10)
+        super(SpiralsBullet, self).__init__(world, 'spirals', parent, position, heading, 52, 'media/spirals.png', 10)
         self.action_angle = 0
         self.origin_point = position
 
