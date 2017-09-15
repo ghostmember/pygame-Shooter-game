@@ -2,7 +2,6 @@ import pygame
 from pygame.locals import *
 from pygame import sprite
 from gameobjects.vector2 import Vector2
-from gameobjects.color import Color
 import math
 import random
 
@@ -138,15 +137,24 @@ class Entity(sprite.Sprite):
         self.rotate(self.init_angle)
         return self.image
 
+    def collide_callback(self, entity):
+        '''
+        碰撞时的回调函数
+        :param entity: 与之发生碰撞的事物
+        :return:
+        '''
+        pass
+
 
 class Bullet(Entity):
     cold_down = 300
 
-    def __init__(self, world, name, position, heading, speed, image, damage=1, rc=(20, 24), angle=0):
+    def __init__(self, world, name, parent, position, heading, speed, image, damage=1, rc=(20, 24), angle=0):
         '''
         子弹类的工作函数
         :param world: 世界
         :param name: 名字
+        :param parent: 所属，是谁发出的子弹
         :param position: 位置
         :param heading: 朝向
         :param speed: 移动速度
@@ -157,7 +165,7 @@ class Bullet(Entity):
         :param angle: 图像初始旋转的角度
         '''
         super(Bullet, self).__init__(world, name, position, heading, speed, image, (1, 1), rc, angle)
-        self.survival_time = 0
+        self.parent = parent
         self.damage = damage
         self.add(self.world.group('bullets'))
 
@@ -170,8 +178,8 @@ class Bullet(Entity):
 class BounceBullet(Bullet):
     cold_down = 500
 
-    def __init__(self, world, name, position, heading):
-        super(BounceBullet, self).__init__(world, name, position, heading, 52, 'media/bullet-png-39228.png', 10)
+    def __init__(self, world, parent, position, heading):
+        super(BounceBullet, self).__init__(world, 'bounce', parent, position, heading, 52, 'media/bullet-png-39228.png', 10)
 
     def movement(self, time_passed):
         super(BounceBullet, self).movement(time_passed)
@@ -255,7 +263,7 @@ class Role(Entity):
                 x = h / math.sin(angle) * math.cos(angle)
                 y = h
             position = self.position + Vector2(x, y).length * self.heading.get_normalised()
-            self.bullet[bullet][0](self.world, self.name, position, self.heading)
+            self.bullet[bullet][0](self.world, self, position, self.heading)
             self.bullet[bullet][1] = current_time
 
     def hit(self, damage):
@@ -278,19 +286,22 @@ class Role(Entity):
 
     def movement(self, time_passed):
         super(Role, self).movement(time_passed)
+        position = ''
         if self.position.get_x() <= self.frame_width / 2.0:
             self.position.set_x(self.frame_width / 2.0)
-            return 'left'
+            position += 'left'
         elif self.position.get_x() >= self.world.width - self.frame_width / 2:
             self.position.set_x(self.world.width - self.frame_width / 2)
-            return 'right'
+            position += 'right'
         if self.position.get_y() <= self.frame_height / 2:
             self.position.set_y(self.frame_height / 2)
-            return 'up'
+            position += 'up'
         elif self.position.get_y() >= self.world.height - self.frame_height / 2:
             self.position.set_y(self.world.height - self.frame_height / 2)
-            return 'bottom'
-        return None
+            position += 'bottom'
+        if position == '':
+            position = None
+        return position
 
 
 class Player(Role):
@@ -302,7 +313,7 @@ class Player(Role):
 
     def control(self, pressed_keys):
         if pressed_keys[K_SPACE]:
-            self.fire('spirals')
+            self.fire('bounce')
 
         if pressed_keys[K_LEFT] or pressed_keys[K_RIGHT] or pressed_keys[K_UP] or pressed_keys[K_DOWN]:
             direction = ''
@@ -355,7 +366,9 @@ class Robot(Role):
 
     def fire(self, bullet):
         heading = self.heading
-        self.heading = Vector2(random.random() * 2 - 1, random.random() * 2 - 1)
+        current_time = pygame.time.get_ticks() / 1000
+        angle = current_time * math.pi * 2
+        self.heading = Vector2(math.cos(angle), math.sin(angle))
         super(Robot, self).fire(bullet)
         self.heading = heading
 
@@ -404,12 +417,12 @@ class World(object):
         if len(bs) < 5:
             if Robot.counter < 100:
                 Robot(self)
-            # if len(bs) == 0:
-            #     return 'win'
+            if len(bs) == 0:
+                return 'win'
 
-            # bs = self.groups.setdefault('player', sprite.Group())
-            # if len(bs) == 0:
-            #     return 'over'
+            bs = self.groups.setdefault('player', sprite.Group())
+            if len(bs) == 0:
+                return 'over'
 
         return None
 
@@ -422,8 +435,8 @@ class World(object):
 class SpiralsBullet(Bullet):
     cold_down = 500
 
-    def __init__(self, world, name, position, heading):
-        super(SpiralsBullet, self).__init__(world, name, position, heading, 52, 'media/bullet-png.png', 10)
+    def __init__(self, world, parent, position, heading):
+        super(SpiralsBullet, self).__init__(world, 'spirals', parent, position, heading, 52, 'media/bullet-png.png', 10)
         self.action_angle = 0
         self.origin_point = position
 
