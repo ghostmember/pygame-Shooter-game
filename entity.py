@@ -3,7 +3,6 @@ from pygame.locals import *
 from pygame import sprite
 from gameobjects.vector2 import Vector2
 import math
-import random
 
 
 class Entity(sprite.Sprite):
@@ -40,6 +39,7 @@ class Entity(sprite.Sprite):
         self.action_counter = 0  # 用于控制移动时动画帧率的时间间隔统计
         self.heading = Vector2(heading).normalise()  # 朝向，归一化，即向量长度为 1
         self.init_angle = angle
+        self.collide_entity = {}
 
     def load(self, image, rc, nums):
         '''
@@ -70,7 +70,6 @@ class Entity(sprite.Sprite):
         :return: None
         '''
         self.load_frame()  # 加载动画帧
-        self.movement(time_passed)  # 调用约束函数，计算位置
         try:
             self.rect.center = self.position  # 更新位置
         except Exception as e:
@@ -86,6 +85,8 @@ class Entity(sprite.Sprite):
             self.frame_col = (self.frame_col + 1) % self.col_num
             self.action_counter = 0
 
+        self.movement(time_passed)  # 调用约束函数，计算位置
+
     def movement(self, time_passed):
         '''
         用于计算和约束位置的函数，由各个继承的子类自行定义
@@ -94,6 +95,7 @@ class Entity(sprite.Sprite):
         '''
         x = self.heading.get_normalised() * self.speed * time_passed  # 计算此段时间内移动位移
         self.position += x
+        self.collide_process(time_passed)  # 处理之前的碰撞
         pass
 
     def get_heading(self):
@@ -137,13 +139,22 @@ class Entity(sprite.Sprite):
         self.rotate(self.init_angle)
         return self.image
 
-    def collide_callback(self, entity):
+    def collide_callback(self, group_name, entity):
         '''
         碰撞时的回调函数
+        :param group_name: 与之发生碰撞的事物所属的组名
         :param entity: 与之发生碰撞的事物
         :return:
         '''
-        pass
+        self.collide_entity.setdefault(group_name, list()).append(entity)
+
+    def collide_process(self, time_passed):
+        '''
+        碰撞处理的方法
+        :param time_passed: 时间间隔
+        :return:
+        '''
+        self.collide_entity.clear()
 
 
 class Bullet(Entity):
@@ -174,28 +185,8 @@ class Bullet(Entity):
         angle = self.get_heading() - self.init_angle
         self.rotate(angle)
 
-
-class BounceBullet(Bullet):
-    cold_down = 500
-
-    def __init__(self, world, parent, position, heading):
-        super(BounceBullet, self).__init__(world, 'bounce', parent, position, heading, 52, 'media/bullet-png-39228.png', 10)
-
-    def movement(self, time_passed):
-        super(BounceBullet, self).movement(time_passed)
-        x, y = self.position
-        if x <= self.frame_width / 2:
-            self.position.x = self.frame_width / 2
-            self.heading *= (-1, 1)
-        elif x >= self.world.width - self.frame_width / 2:
-            self.position.x = self.world.width - self.frame_width / 2
-            self.heading *= (-1, 1)
-        if y <= self.frame_height / 2:
-            self.heading *= (1, -1)
-            self.position.y = self.frame_height / 2
-        elif y >= self.world.height - self.frame_height / 2:
-            self.heading *= (1, -1)
-            self.position.y = self.world.height - self.frame_height / 2
+    def collide_callback(self, group_name, entity):
+        self.kill()
 
 
 class Role(Entity):
@@ -218,7 +209,7 @@ class Role(Entity):
         self.hp = hp
         self.max_hp = hp
         self.hp_color = hp_color
-        self.bullet = {'bounce': [BounceBullet, 0], 'spirals': [SpiralsBullet, 0]}
+        self.bullet = {}
         self.move_speed = speed
         # self.world.tanks.add(self)
 
@@ -303,80 +294,16 @@ class Role(Entity):
             position = None
         return position
 
-
-class Player(Role):
-    def __init__(self, world):
-        super(Player, self).__init__(world, 'player', (400, 300), (0, -1), 50, 'media/hero-1.png', (4, 4), (25, 12.5),
-                                     hp_color=(0, 255, 0))
-        self.world.add('player', self)
-        self.frame_row = 3
-
-    def control(self, pressed_keys):
-        if pressed_keys[K_SPACE]:
-            self.fire('bounce')
-
-        if pressed_keys[K_LEFT] or pressed_keys[K_RIGHT] or pressed_keys[K_UP] or pressed_keys[K_DOWN]:
-            direction = ''
-            if pressed_keys[K_LEFT]:
-                direction += 'l'
-            if pressed_keys[K_RIGHT]:
-                direction += 'r'
-            if pressed_keys[K_UP]:
-                direction += 'u'
-            if pressed_keys[K_DOWN]:
-                direction += 'd'
-            if direction != '':
-                self.move(direction)
+    def collide_callback(self, group_name, entity):
+        if group_name == 'bullets':
+            self.hit(entity.damage)
         else:
-            self.stop()
+            super(Role, self).collide_callback(group_name, entity)
 
 
-class Robot(Role):
-    counter = 0
-
-    def __init__(self, world):
-        w = world.width
-        h = int(world.height * 0.3)
-        position = (random.randint(0, w), random.randint(0, h))
-        super(Robot, self).__init__(world, 'Robot', position, (0, -1), 50, 'media/hero-0.png',
-                                    (4, 4), (25, 12.5), hp_color=(255, 0, 0))
-        Robot.counter += 1
-        self.move_counter = 0
-        self.next_time = 0
-        self.add(self.world.group('robot'))
-
-    def update(self, time_passed):
-        self.move_counter += 1
-        if self.move_counter > (self.next_time / time_passed):
-            self.next_time = 5 * random.random()
-            self.move_counter = 0
-            move = random.choice('udlr')
-            if move == 's':
-                self.stop()
-            else:
-                self.move(move)
-        super(Robot, self).update(time_passed)
-        if random.random() < 0.03:
-            bullet = random.choice(['bounce', 'spirals'])
-            self.fire(bullet)
-
-    def hit(self, de):
-        if super(Robot, self).hit(de) <= 0:
-            self.world.kill_counter += 1
-
-    def fire(self, bullet):
-        heading = self.heading
-        current_time = pygame.time.get_ticks() / 1000
-        angle = current_time * math.pi * 2
-        self.heading = Vector2(math.cos(angle), math.sin(angle))
-        super(Robot, self).fire(bullet)
-        self.heading = heading
-
-
-class World(object):
+class WorldBase(object):
     def __init__(self, surface):
         self.surface = surface
-        # self.all_sprites = sprite.Group()
         self.groups = {}
         self.width, self.height = self.surface.get_size()
         self.hit_counter = 0
@@ -395,6 +322,9 @@ class World(object):
     def group(self, group_name):
         return self.groups.setdefault(group_name, sprite.Group())
 
+    def get_groups(self):
+        return self.groups.items()
+
     @staticmethod
     def collide(bullet, tank):
         # if bullet.name == tank.name:
@@ -402,57 +332,19 @@ class World(object):
         return sprite.collide_rect_ratio(0.5)(bullet, tank)
 
     def process(self):
-        bs = self.groups.setdefault('bullets', sprite.Group())
-        if len(bs):
-            for name, group in self.groups.items():
-                if name == 'bullets':
-                    continue
-                g = sprite.groupcollide(bs, group, True, False, self.collide)
-                for b, p in g.items():
-                    p[0].hit(b.damage)
-                    if name == 'robot':
-                        self.hit_counter += 1
-
-        bs = self.groups.setdefault('robot', sprite.Group())
-        if len(bs) < 5:
-            if Robot.counter < 100:
-                Robot(self)
-            if len(bs) == 0:
-                return 'win'
-
-            bs = self.groups.setdefault('player', sprite.Group())
-            if len(bs) == 0:
-                return 'over'
-
+        groups = list(self.groups.items())
+        for group in groups:
+            groups.remove(group)
+            name1, group1 = group
+            for name2, group2 in groups:
+                g = sprite.groupcollide(group1, group2, False, False, self.collide)
+                for a, bs in g.items():
+                    for b in bs:
+                        a.collide_callback(name2, b)
+                        b.collide_callback(name1, a)
         return None
 
     def update(self, time_pass_second):
         for group in self.groups.values():
             group.update(time_pass_second)
             group.draw(self.surface)
-
-
-class SpiralsBullet(Bullet):
-    cold_down = 500
-
-    def __init__(self, world, parent, position, heading):
-        super(SpiralsBullet, self).__init__(world, 'spirals', parent, position, heading, 52, 'media/bullet-png.png', 10)
-        self.action_angle = 0
-        self.origin_point = position
-
-    def movement(self, time_passed):
-        r = self.position.get_distance_to(self.origin_point)
-        if r > max(self.world.width, self.world.height):
-            self.kill()
-        coe = 1
-        if r > 50:
-            coe = self.speed / r
-        self.action_angle += math.pi * time_passed * coe
-        c = self.action_angle
-        a = 0
-        b = 10
-        x = (a + b * c) * math.cos(c)
-        y = (a + b * c) * math.sin(c)
-        position = Vector2(x, y) + self.origin_point
-        self.heading = position - self.position
-        self.position = position
