@@ -601,8 +601,6 @@ class WorldBase(object):
         self.all_sprite.sort = self.sort
         self.groups = {}
         self.width, self.height = self.surface.get_size()
-        self.hit_counter = 0
-        self.kill_counter = 0
 
     def add(self, group_name, *sprites):
         """

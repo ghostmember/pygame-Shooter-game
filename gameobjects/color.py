@@ -114,7 +114,7 @@ class ColorRGBA(object):
 
 
     @classmethod
-    def grey(self, level):
+    def grey(cls, level):
 
         """Creates a 'grey' color.
 

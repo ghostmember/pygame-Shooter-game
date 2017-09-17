@@ -36,6 +36,7 @@ class Robot(Role):
             self.fire(bullet)
 
     def hit(self, de):
+        self.world.hit_counter += 1
         if super(Robot, self).hit(de) <= 0:
             self.world.kill_counter += 1
 
@@ -56,7 +57,7 @@ class Player(Role):
 
     def control(self, pressed_keys):
         if pressed_keys[K_SPACE]:
-            self.fire('spirals')
+            self.fire('bounce')
 
         if pressed_keys[K_LEFT] or pressed_keys[K_RIGHT] or pressed_keys[K_UP] or pressed_keys[K_DOWN]:
             direction = ''

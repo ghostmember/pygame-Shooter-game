@@ -6,6 +6,8 @@ from role import Robot
 class World(WorldBase):
     def __init__(self, surface):
         super(World, self).__init__(surface)
+        self.hit_counter = 0
+        self.kill_counter = 0
 
     def process(self):
         super(World, self).process()
