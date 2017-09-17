@@ -12,12 +12,11 @@ class Robot(Role):
         w = world.width
         h = int(world.height * 0.3)
         position = (random.randint(0, w), random.randint(0, h))
-        super(Robot, self).__init__(world, 'Robot', position, (0, -1), 50, 'media/hero-0.png',
+        super(Robot, self).__init__(world, 'Robot', 'robot', position, (0, -1), 50, 'media/hero-0.png',
                                     (4, 4), (25, 12.5), hp_color=(255, 0, 0))
         Robot.counter += 1
         self.move_counter = 0
         self.next_time = 0
-        self.add(self.world.group('robot'))
         self.add_bullet('bounce', BounceBullet)
         self.add_bullet('spirals', SpiralsBullet)
 
@@ -49,15 +48,15 @@ class Robot(Role):
 
 class Player(Role):
     def __init__(self, world):
-        super(Player, self).__init__(world, 'player', (400, 300), (0, -1), 50, 'media/hero-1.png', (4, 4), (25, 12.5),
-                                     hp_color=(0, 255, 0))
-        self.world.add('player', self)
+        super(Player, self).__init__(world, 'player', 'player', (400, 300), (0, -1), 50, 'media/hero-1.png',
+                                     (4, 4), (25, 12.5), hp_color=(0, 255, 0))
         self.frame_row = 3
         self.add_bullet('bounce', BounceBullet)
+        self.add_bullet('spirals', SpiralsBullet)
 
     def control(self, pressed_keys):
         if pressed_keys[K_SPACE]:
-            self.fire('bounce')
+            self.fire('spirals')
 
         if pressed_keys[K_LEFT] or pressed_keys[K_RIGHT] or pressed_keys[K_UP] or pressed_keys[K_DOWN]:
             direction = ''

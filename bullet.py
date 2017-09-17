@@ -31,8 +31,8 @@ class SpiralsBullet(Bullet):
 
     def __init__(self, world, parent, position, heading):
         super(SpiralsBullet, self).__init__(world, 'spirals', parent, position, heading, 52, 'media/spirals.png', 10)
-        self.action_angle = 0
-        self.origin_point = position
+        self.action_angle = math.pi * 0.3
+        self.origin_point = Vector2(position)
 
     def movement(self, time_passed):
         r = self.position.get_distance_to(self.origin_point)
@@ -44,9 +44,27 @@ class SpiralsBullet(Bullet):
         self.action_angle += math.pi * time_passed * coe
         c = self.action_angle
         a = 0
-        b = 10
+        b = 20
         x = (a + b * c) * math.cos(c)
         y = (a + b * c) * math.sin(c)
         position = Vector2(x, y) + self.origin_point
         self.heading = position - self.position
         self.position = position
+        
+    def set_position(self, position):
+        self.origin_point = position
+        super(SpiralsBullet, self).set_position(position)
+    
+    def get_damage(self, entity):
+        if self.parent == entity:
+            if self.position.get_distance_to(self.origin_point) < 100:
+                return 0
+        return super(SpiralsBullet, self).get_damage(entity)
+
+    def collide_callback(self, group_name, entity):
+        if entity == self.parent:
+            return 
+        super(SpiralsBullet, self).collide_callback(group_name, entity)
+
+    def adjust_position(self):
+        pass
