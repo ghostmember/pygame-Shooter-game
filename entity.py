@@ -158,7 +158,7 @@ def collide_can_move_xy(velocity1, rect1, velocity2, rect2):
 
 
 class Entity(sprite.Sprite):
-    def __init__(self, world, name, group, position, heading, speed, image, rc, nums=None, angle=0, overlap=(0, False)):
+    def __init__(self, world, name, group, position, heading, speed, image, rc=(1, 1), nums=None, angle=0, overlap=(0, False)):
         """
         类的构造函数
         :param world: 所在的世界，都是世界的错，西园寺小姐真是很辛苦呢
@@ -167,7 +167,7 @@ class Entity(sprite.Sprite):
         :param position: 实例所在的位置
         :param heading: 实例的朝向
         :param speed: 实例的速度 像素/秒
-        :param image: 实例的图片路径
+        :param image: 实例的图片路径或图像对象，或者透明图像的尺寸
         :param rc: 一个元组(m, n)，表示图片是m*n帧的
         :param nums: 一个元组(m, n)，用于缩放；表示实例图像大小相对于世界大小的数量，
         即摆满屏幕横着可以放m列，竖着可以放n行；可为 None，表示不进行缩放
@@ -201,7 +201,7 @@ class Entity(sprite.Sprite):
     def add_groups(self, group):
         """
         将实例添加到world中对用的精灵组中
-        :param group:
+        :param group: 精灵组
         :return:
         """
         if group is None:
@@ -216,13 +216,20 @@ class Entity(sprite.Sprite):
 
     def load(self, image, rc, nums):
         """
-        加载图
-        :param image: 图片路径
+        加载图像
+        :param image: 图片路径或surface对象或图像尺寸
         :param rc: 一个元组(m, n)，表示图片是m*n帧的
         :param nums: 太长了，算了
         :return: surface 对象
         """
-        master_image = pygame.image.load(image).convert_alpha()  # 载入图片
+        if isinstance(image, str):
+            master_image = pygame.image.load(image).convert_alpha()  # 载入图片
+        elif isinstance(image, pygame.Surface):
+            master_image = image
+        elif isinstance(image, (tuple, list)):
+            master_image = pygame.Surface(image, flags=SRCALPHA, depth=32)
+        else:
+            master_image = pygame.Surface((1, 1), flags=SRCALPHA, depth=32)
         w, h = master_image.get_size()  # 获取图片尺寸
         scale = 1  # 初始化缩放比例为 1
         if nums is not None:  # 判断 nums 是为None
