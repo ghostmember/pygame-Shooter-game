@@ -112,6 +112,13 @@ def not_overlap_collide(velocity1, rect1, velocity2, rect2):
 
 
 def can_move(v, p, s):
+    """
+    计算x, y分量方向是否可以移动
+    :param v: 速度
+    :param p: 两点之间的位移
+    :param s: 矩形交集的长宽
+    :return: x, y分量上是否可以移动
+    """
     if v.get_length() > 0:
         x, y = v * p
         w, h = s
@@ -127,6 +134,14 @@ def can_move(v, p, s):
 
 
 def collide_can_move_xy(velocity1, rect1, velocity2, rect2):
+    """
+    计算是否可以在x, y方向移动
+    :param velocity1: 矩形1的速度
+    :param rect1: 矩形1
+    :param velocity2: 矩形2的速度
+    :param rect2: 矩形2
+    :return: 两矩形在x, y上是否可以移动；True: 可移动，False: 不可移动
+    """
     v1 = Vector2(velocity1)
     v2 = Vector2(velocity2)
     r1 = Rect(rect1)
@@ -157,13 +172,14 @@ class Entity(sprite.Sprite):
         :param nums: 一个元组(m, n)，用于缩放；表示实例图像大小相对于世界大小的数量，
         即摆满屏幕横着可以放m列，竖着可以放n行；可为 None，表示不进行缩放
         :param angle: 图像初始旋转的角度
-        :param overlap: 图像可覆盖高度，用于碰撞检测和绘画时排序
+        :param overlap: 图像覆盖区域参数，用于碰撞检测和绘画时排序，第一个参数表示高度比例，正值表示从顶部开始计算，负值表示从底部开始计算
+        第二个参数，True: 置于底部，被覆盖；False: 至顶部，覆盖其他图像
         """
         # 调用父类的构造函数
         super(Entity, self).__init__()
         self.world = world
         self.name = name
-        self.group = self.__add(group)
+        self.group = self.add_groups(group)
         self.speed = speed
         self.position = Vector2(position)
         self.master_image = self.load(image, rc, nums)  # 加载图片
@@ -182,7 +198,12 @@ class Entity(sprite.Sprite):
         self.overlap = overlap
         self.collide_entity = {}
 
-    def __add(self, group):
+    def add_groups(self, group):
+        """
+        将实例添加到world中对用的精灵组中
+        :param group:
+        :return:
+        """
         if group is None:
             group = ('__anonymous__',)
         elif isinstance(group, (tuple, list, dict)):
@@ -315,14 +336,25 @@ class Entity(sprite.Sprite):
                         self.position.y = y
 
     def set_collide_entity_position(self, group, entity, position):
+        """
+        设置对发生碰撞的事物位置的影响
+        :param group: 精灵组名
+        :param entity: 影响的实例
+        :param position: 对位置的影响
+        :return: None
+        """
         if not isinstance(group, (tuple, list, dict)):
             return
         for g in group:
-            if g not in self.collide_entity:
-                continue
-            self.collide_entity[g][entity] = position
+            if g in self.collide_entity:
+                self.collide_entity[g][entity] = position
 
     def set_position(self, position):
+        """
+        设置位置信息
+        :param position: 位置
+        :return: None
+        """
         self.position = position
 
 
@@ -363,16 +395,25 @@ class Bullet(Entity):
         self.rotate(angle)
 
     def get_damage(self, entity):
+        """
+        获取对实例产生的伤害
+        :param entity: 受到伤害的实例
+        :return: 伤害值
+        """
         return self.damage
 
     def adjust_position(self):
+        """
+        计算子弹生成的位置
+        :return: 无
+        """
         self.position += rect_edge(self.heading, self.rect.size)
         self.position += rect_edge(self.heading, self.parent.rect.size)
 
 
 class Role(Entity):
-    def __init__(self, world, name, group, position, heading, speed, image, rc, nums=None, hp=100, hp_color=None,
-                 angle=0):
+    def __init__(self, world, name, group, position, heading, speed, image, rc=(4, 4), nums=None, hp=100, hp_color=None,
+                 angle=0, overlap=(0.8, False)):
         """
         人物类构造函数
         :param world: 又是世界，西园寺小姐好忙啊
@@ -387,8 +428,9 @@ class Role(Entity):
         :param hp: 血量
         :param hp_color: 血条颜色
         :param angle: 图像旋转的角度
+        :param overlap: 覆盖区域
         """
-        super(Role, self).__init__(world, name, group, position, heading, 0, image, rc, nums, angle, overlap=(0.8, False))
+        super(Role, self).__init__(world, name, group, position, heading, 0, image, rc, nums, angle, overlap)
         self.hp = hp
         self.max_hp = hp
         self.hp_color = hp_color
@@ -396,6 +438,11 @@ class Role(Entity):
         self.move_speed = speed
 
     def move(self, direction):
+        """
+        移动，设置朝向
+        :param direction: 方向
+        :return:
+        """
         v = Vector2()
         if 'l' in direction:
             self.frame_row = 1
@@ -417,10 +464,20 @@ class Role(Entity):
         self.speed = self.move_speed
 
     def stop(self):
+        """
+        停止移动
+        :return:
+        """
         self.frame_col = 0
         self.speed = 0
 
     def fire(self, bullet, heading=None):
+        """
+        开火
+        :param bullet: 子弹类型
+        :param heading: 子弹发射的方向
+        :return:
+        """
         if bullet not in self.bullet:
             return
         current_time = pygame.time.get_ticks()
@@ -434,6 +491,11 @@ class Role(Entity):
             self.bullet[bullet]['num'] -= 1
 
     def hit(self, damage):
+        """
+        被击中后的计算
+        :param damage: 受到的伤害
+        :return: 血量
+        """
         self.hp -= damage
         if self.hp <= 0:
             self.kill()
@@ -496,6 +558,11 @@ class Role(Entity):
         self.bullet[name]['cd_time'] = bullet.cold_down
 
     def remove_bullet(self, name):
+        """
+        移除子弹
+        :param name: 子弹类型名称
+        :return:
+        """
         if name in self.bullet:
             self.bullet.pop(name)
 
@@ -518,6 +585,10 @@ class ListGroup(sprite.Group):
 
 class WorldBase(object):
     def __init__(self, surface):
+        """
+        世界基类的构造函数
+        :param surface: 窗口图像对象
+        """
         self.surface = surface
         self.all_sprite = ListGroup()
         self.all_sprite.sort = self.sort
@@ -527,28 +598,62 @@ class WorldBase(object):
         self.kill_counter = 0
 
     def add(self, group_name, *sprites):
+        """
+        向精灵组中添加精灵
+        :param group_name: 组名
+        :param sprites: 精灵
+        :return:
+        """
         self.all_sprite.add(*sprites)
         self.groups.setdefault(group_name, sprite.Group()).add(*sprites)
 
     def remove(self, group_name, *sprites):
+        """
+        从精灵组中移除精灵
+        :param group_name: 组名
+        :param sprites: 精灵
+        :return:
+        """
         self.all_sprite.remove(*sprites)
         if group_name in self.groups:
             self.groups[group_name].remove(*sprites)
 
-    def group(self, group_name):
-        return self.groups.setdefault(group_name, sprite.Group()), self.all_sprite
+    def group(self, group_name=None):
+        """
+        返回指定的精灵组
+        :param group_name: 组名，None: 返回 all_sprite
+        :return: 精灵组
+        """
+        if group_name is None:
+            return self.all_sprite
+        return self.groups.setdefault(group_name, sprite.Group())
 
     def get_groups(self):
+        """
+        获取所有精灵组
+        :return: 所有精灵组
+        """
         return self.groups.items()
 
     @staticmethod
     def collide(a, b):
+        """
+        碰撞计算
+        :param a: 精灵a
+        :param b: 精灵b
+        :return: 是否发生碰撞
+        """
         if a == b:
             return False
         return sprite.collide_rect_ratio(collide_ratio)(a, b)
 
     @staticmethod
     def sort(sp):
+        """
+        排序
+        :param sp: 精灵
+        :return: 序列值
+        """
         over, lap = sp.overlap
         if over > 1:
             over = 1
@@ -562,6 +667,10 @@ class WorldBase(object):
         return y
 
     def process(self):
+        """
+        处理函数，进行精灵碰撞等计算
+        :return:
+        """
         groups = list(self.groups.items())
         for group in groups:
             name1, group1 = group
@@ -575,5 +684,10 @@ class WorldBase(object):
         return None
 
     def update(self, time_pass_second):
+        """
+        更新，精灵信息并绘画
+        :param time_pass_second: 距离上次更新的时间间隔
+        :return:
+        """
         self.all_sprite.update(time_pass_second)
         self.all_sprite.draw(self.surface)
