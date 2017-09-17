@@ -4,7 +4,7 @@ from pygame import sprite
 from gameobjects.vector2 import Vector2
 import math
 
-collide_ratio = 0.5
+collide_ratio = 0.7
 
 
 def rect_edge(heading, size):
@@ -40,9 +40,14 @@ def not_overlap(rect, over):
     :param over: 覆盖区的高度比例
     :return: 非覆盖区域矩形
     """
+    rect = Rect(rect)
+    c = rect.center
+    rect.w *= collide_ratio
+    rect.h *= collide_ratio
+    rect.center = c
     x, y, w, h = rect
     if over > 0:
-        y = h * over
+        y += h * over
     h *= (1 - abs(over))
     return Rect(x, y, w, h)
 
@@ -54,7 +59,7 @@ def not_overlap_collide(velocity1, rect1, velocity2, rect2):
     :param rect1: 矩形 1
     :param velocity2: 矩形 2 的速度
     :param rect2: 矩形 2
-    :return:
+    :return: 两个位移
     """
     v1 = Vector2(velocity1)
     v2 = Vector2(velocity2)
@@ -104,6 +109,37 @@ def not_overlap_collide(velocity1, rect1, velocity2, rect2):
             x1.y *= 2
             x2.y = 0
     return x1, x2
+
+
+def can_move(v, p, s):
+    if v.get_length() > 0:
+        x, y = v * p
+        w, h = s
+        if w == h:
+            r1, r2 = True, True
+        elif w > h:
+            r1, r2 = True, False
+        else:
+            r1, r2 = False, True
+        return r1 if x > 0 else True, r2 if y > 0 else True
+    else:
+        return False, False
+
+
+def collide_can_move_xy(velocity1, rect1, velocity2, rect2):
+    v1 = Vector2(velocity1)
+    v2 = Vector2(velocity2)
+    r1 = Rect(rect1)
+    c1 = r1.center
+    cr = collide_ratio
+    r2 = Rect(rect2)
+    c2 = r2.center
+    r = r1.clip(r2)
+    s = r.size
+    p = Vector2(c1) - c2
+    a = can_move(v1, -p, s)
+    b = can_move(v2, p, s)
+    return a, b
 
 
 class Entity(sprite.Sprite):
@@ -187,13 +223,7 @@ class Entity(sprite.Sprite):
         """
         self.movement(time_passed)  # 调用约束函数，计算位置
         self.load_frame()  # 加载动画帧
-        try:
-            self.rect.center = self.position  # 更新位置
-        except Exception as e:
-            print(e)
-            print(self.position)
-            print(self.rect)
-            exit()
+        self.rect.center = self.position  # 更新位置
         # 如果速度为 0，则跳过帧计算
         if self.speed != 0:
             self.action_counter += time_passed  # 更新时间统计
@@ -272,15 +302,17 @@ class Entity(sprite.Sprite):
         velocity = self.speed * self.heading
         if velocity.get_length() > 0:
             rect1 = not_overlap(self.rect, self.overlap[0])
+            x, y = self.rect.center
             for sprites in self.collide_entity.values():
-                for sp, position in sprites.items():
-                    if position is not None:
-                        self.position -= position
-                        continue
-                    rect2 = not_overlap(sp.rect, sp.overlap[0])
-                    x1, x2 = not_overlap_collide(velocity, rect1, sp.heading*sp.speed, rect2)
-                    self.position -= x1
-                    sp.set_collide_entity_position(self.group, self, x2)
+                for sp, cm in sprites.items():
+                    if cm is None:
+                        rect2 = not_overlap(sp.rect, sp.overlap[0])
+                        cm, x2 = collide_can_move_xy(velocity, rect1, sp.heading*sp.speed, rect2)
+                        sp.set_collide_entity_position(self.group, self, x2)
+                    if not cm[0]:
+                        self.position.x = x
+                    if not cm[1]:
+                        self.position.y = y
 
     def set_collide_entity_position(self, group, entity, position):
         if not isinstance(group, (tuple, list, dict)):
@@ -356,7 +388,7 @@ class Role(Entity):
         :param hp_color: 血条颜色
         :param angle: 图像旋转的角度
         """
-        super(Role, self).__init__(world, name, group, position, heading, 0, image, rc, nums, angle)
+        super(Role, self).__init__(world, name, group, position, heading, 0, image, rc, nums, angle, overlap=(0.8, False))
         self.hp = hp
         self.max_hp = hp
         self.hp_color = hp_color
@@ -418,6 +450,7 @@ class Role(Entity):
         surface.fill(self.hp_color, (0, 0, int(self.rect.width * self.hp / self.max_hp), h))
         surface.blit(self.image, (0, h))
         self.image = surface
+        self.rect.center = self.position
 
     def movement(self, time_passed):
         super(Role, self).movement(time_passed)
