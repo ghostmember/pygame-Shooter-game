@@ -1,6 +1,7 @@
 from pygame import sprite
 from entity import WorldBase
 from role import Robot
+from map import Edge
 
 
 class World(WorldBase):
@@ -8,6 +9,7 @@ class World(WorldBase):
         super(World, self).__init__(surface)
         self.hit_counter = 0
         self.kill_counter = 0
+        self.edge = Edge(self)
 
     def process(self):
         super(World, self).process()
