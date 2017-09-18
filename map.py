@@ -16,4 +16,4 @@ class Edge(object):
         self.top.image.fill((0, 0, 0))
         self.bottom = Obstacle(world, 'bottom', (x, h - p), (w1, extend), 'edge')
         self.left = Obstacle(world, 'left', (p, y), (extend, h1), 'edge')
-        self.right = Obstacle(world, 'top', (w - p, y), (extend, h1), 'edge')
+        self.right = Obstacle(world, 'right', (w - p, y), (extend, h1), 'edge')
