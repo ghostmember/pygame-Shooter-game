@@ -417,6 +417,7 @@ class Bullet(Entity):
         """
         self.position += rect_edge(self.heading, self.rect.size)
         self.position += rect_edge(self.heading, self.parent.rect.size)
+        self.rect.center = self.position
 
 
 class Role(Entity):
@@ -557,7 +558,8 @@ class Role(Entity):
 
 
 class Obstacle(Entity):
-    def __init__(self, world, name, position, image, group='obstacle', rc=(1,1), num=None, angle=0, overlap=(0, False)):
+    def __init__(self, world, name, position, image, group='obstacle', rc=(1, 1),
+                 num=None, angle=0, overlap=(0, False)):
         super(Obstacle, self).__init__(world, name, group, position, (0, 0), 0, image, rc, num, angle, overlap)
 
 
