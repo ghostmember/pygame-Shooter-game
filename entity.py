@@ -158,7 +158,8 @@ def collide_can_move_xy(velocity1, rect1, velocity2, rect2):
 
 
 class Entity(sprite.Sprite):
-    def __init__(self, world, name, group, position, heading, speed, image, rc=(1, 1), nums=None, angle=0, overlap=(0, False)):
+    def __init__(self, world, name, group, position, heading, speed, image, rc=(1, 1), nums=None, angle=0,
+                 overlap=(0, False)):
         """
         类的构造函数
         :param world: 所在的世界，都是世界的错，西园寺小姐真是很辛苦呢
@@ -335,7 +336,7 @@ class Entity(sprite.Sprite):
                 for sp, cm in sprites.items():
                     if cm is None:
                         rect2 = not_overlap(sp.rect, sp.overlap[0])
-                        cm, x2 = collide_can_move_xy(velocity, rect1, sp.heading*sp.speed, rect2)
+                        cm, x2 = collide_can_move_xy(velocity, rect1, sp.heading * sp.speed, rect2)
                         sp.set_collide_entity_position(self.group, self, x2)
                     if not cm[0]:
                         self.position.x = x
@@ -521,25 +522,6 @@ class Role(Entity):
         self.image = surface
         self.rect.center = self.position
 
-    def movement(self, time_passed):
-        super(Role, self).movement(time_passed)
-        position = ''
-        if self.position.get_x() <= self.frame_width / 2.0:
-            self.position.set_x(self.frame_width / 2.0)
-            position += 'left'
-        elif self.position.get_x() >= self.world.width - self.frame_width / 2:
-            self.position.set_x(self.world.width - self.frame_width / 2)
-            position += 'right'
-        if self.position.get_y() <= self.frame_height / 2:
-            self.position.set_y(self.frame_height / 2)
-            position += 'up'
-        elif self.position.get_y() >= self.world.height - self.frame_height / 2:
-            self.position.set_y(self.world.height - self.frame_height / 2)
-            position += 'bottom'
-        if position == '':
-            position = None
-        return position
-
     def collide_callback(self, group_name, entity):
         if group_name == 'bullets':
             self.hit(entity.get_damage(self))
@@ -572,6 +554,11 @@ class Role(Entity):
         """
         if name in self.bullet:
             self.bullet.pop(name)
+
+
+class Obstacle(Entity):
+    def __init__(self, world, name, position, image, group='obstacle', rc=(1,1), num=None, angle=0, overlap=(0, False)):
+        super(Obstacle, self).__init__(world, name, group, position, (0, 0), 0, image, rc, num, angle, overlap)
 
 
 class ListGroup(sprite.Group):
