@@ -7,23 +7,19 @@ class BounceBullet(Bullet):
     cold_down = 500
 
     def __init__(self, world, parent, position, heading):
-        super(BounceBullet, self).__init__(world, 'bounce', parent, position, heading, 52, 'media/bullet-png-39228.png', 10)
+        super(BounceBullet, self).__init__(world, 'bounce', parent, position, heading,
+                                           52, 'media/bullet-png-39228.png', 10)
 
-    def movement(self, time_passed):
-        super(BounceBullet, self).movement(time_passed)
-        x, y = self.position
-        if x <= self.frame_width / 2:
-            self.position.x = self.frame_width / 2
-            self.heading *= (-1, 1)
-        elif x >= self.world.width - self.frame_width / 2:
-            self.position.x = self.world.width - self.frame_width / 2
-            self.heading *= (-1, 1)
-        if y <= self.frame_height / 2:
-            self.heading *= (1, -1)
-            self.position.y = self.frame_height / 2
-        elif y >= self.world.height - self.frame_height / 2:
-            self.heading *= (1, -1)
-            self.position.y = self.world.height - self.frame_height / 2
+    def collide_callback(self, group_name, entity):
+        if group_name == 'edge':
+            edge = entity.name
+            x, y = self.heading
+            if (edge == 'left' and x < 0) or (edge == 'right' and x > 0):
+                self.heading *= (-1, 1)
+            if (edge == 'top' and y < 0) or (edge == 'bottom' and y > 0):
+                self.heading *= (1, -1)
+            return
+        super(BounceBullet, self).collide_callback(group_name, entity)
 
 
 class SpiralsBullet(Bullet):
@@ -63,7 +59,10 @@ class SpiralsBullet(Bullet):
 
     def collide_callback(self, group_name, entity):
         if entity == self.parent:
-            return 
+            if self.position.get_distance_to(self.origin_point) < 100:
+                return
+        if group_name == 'edge':
+            return
         super(SpiralsBullet, self).collide_callback(group_name, entity)
 
     def adjust_position(self):
