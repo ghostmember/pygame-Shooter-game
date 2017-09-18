@@ -98,6 +98,6 @@ def start_interface():
 if __name__ == '__main__':
     pygame.init()
     sc = pygame.display.set_mode(ss, 0, 32)
-    pygame.display.set_caption("坦克大战")
+    pygame.display.set_caption("射击游戏")
     clock = pygame.time.Clock()
     start_interface()
