@@ -666,7 +666,7 @@ class WorldBase(object):
         :return:
         """
         groups = list(self.groups.items())
-        for group in groups:
+        for group in groups[:]:
             name1, group1 = group
             for name2, group2 in groups:
                 g = sprite.groupcollide(group1, group2, False, False, self.collide)

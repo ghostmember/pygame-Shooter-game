@@ -21,8 +21,8 @@ class World(WorldBase):
             if len(bs) == 0:
                 return 'win'
 
-            bs = self.groups.setdefault('player', sprite.Group())
-            if len(bs) == 0:
-                return 'over'
+        bs = self.groups.setdefault('player', sprite.Group())
+        if len(bs) == 0:
+            return 'over'
 
         return None
