@@ -10,4 +10,4 @@
     pip install pygame
     ```
 ## 运行
-main.py
+python main.py
